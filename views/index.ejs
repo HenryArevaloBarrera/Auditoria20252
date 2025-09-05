@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <%- include("templates/header") %>
+    <style>
+     body {
+        background-color: #212529;
+    }
+    /* Hero con imagen de fondo */
+    .hero {
+        background: url('/img/fireworks.jpg') no-repeat center center;
+        background-size: cover;
+        height: 100vh;           /* altura máxima igual a la ventana */
+        max-height: 100vh;       /* asegurar que no pase de la pantalla */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        color: white;
+        text-shadow: 2px 2px 6px rgba(0,0,0,0.7);
+        padding: 0 50px;         /* padding vertical reducido para evitar overflow */
+        box-sizing: border-box;  /* incluye padding dentro del height */
+        overflow: hidden;        /* previene scroll interno si el contenido es grande */
+    }
+    .hero h1 {
+        font-size: 4rem;
+        font-weight: bold;
+        margin: 0;
+        line-height: 1.2;
+    }
+    .hero p {
+        font-size: 1.5rem;
+        margin: 10px 0 0 0;
+    }
+</style>
+
+</head>
+<body>
+    <header>
+        <div class="hero">
+            <h1>EvenT Proo</h1>
+            <p>Hacemos que cada momento cuente.</p>
+        </div>
+    </header>
+
+    <footer class="mt-5">
+        <%- include("templates/footer") %>
+    </footer>
+</body>
+</html>

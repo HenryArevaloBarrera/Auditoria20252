@@ -1,0 +1,86 @@
+<%- include("templates/header") %>
+
+<div class="container mt-5">
+  <h2 class="text-center mb-4">Mi Perfil</h2>
+
+  <!-- ALERTA -->
+  <% if (message) { %>
+    <div class="alert alert-<%= messageType %> alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" role="alert" style="z-index: 1050;">
+      <%= message %>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  <% } %>
+
+  <!-- ROW PARA FORMULARIOS -->
+  <div class="row g-4 justify-content-center">
+    <!-- FORMULARIO DE DATOS -->
+    <div class="col-md-4">
+      <div class="card shadow-sm p-4">
+        <h5 class="mb-3">Actualizar Datos</h5>
+        <form action="/perfil/update" method="POST">
+          <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input type="text" name="nombre" class="form-control" value="<%= user.nombre %>" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,50}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Apellido</label>
+            <input type="text" name="apellido" class="form-control" value="<%= user.apellido %>" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,50}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" name="telefono" class="form-control" value="<%= user.telefono %>" pattern="\d{10}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contraseña Actual</label>
+            <input type="password" name="password" class="form-control" placeholder="Ingresa tu contraseña actual" required>
+          </div>
+          <button type="submit" class="btn btn-success w-100">Actualizar Datos</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- FORMULARIO DE CONTRASEÑA -->
+    <div class="col-md-4">
+      <div class="card shadow-sm p-4">
+        <h5 class="mb-3">Actualizar Contraseña</h5>
+        <form action="/perfil/update-password" method="POST">
+          <div class="mb-3">
+            <label class="form-label">Contraseña Actual</label>
+            <input type="password" name="oldPassword" class="form-control" placeholder="Contraseña actual" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nueva Contraseña</label>
+            <input type="password" name="newPassword" class="form-control" placeholder="Nueva contraseña" 
+                   pattern="^(?=.*[a-z])(?=.*[A-Z]).{8,}$"
+                   title="Debe tener al menos 8 caracteres, una mayúscula y una minúscula" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Confirmar Nueva Contraseña</label>
+            <input type="password" name="confirmNewPassword" class="form-control" placeholder="Confirma la nueva contraseña" required>
+          </div>
+          <button type="submit" class="btn btn-warning w-100">Actualizar Contraseña</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- FORMULARIO DE ELIMINAR USUARIO -->
+    <div class="col-md-4">
+      <div class="card shadow-sm p-4">
+        <h5 class="mb-3 text-danger">Eliminar Cuenta</h5>
+        <form action="/perfil/delete" method="POST">
+          <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-control" placeholder="Ingresa tu contraseña para eliminar tu cuenta" required>
+          </div>
+          <button type="submit" class="btn btn-danger w-100">Eliminar Cuenta</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-5">
+    <a href="/" class="btn btn-primary">Volver al Inicio</a>
+  </div>
+</div>
+
+<%- include("templates/footer") %>

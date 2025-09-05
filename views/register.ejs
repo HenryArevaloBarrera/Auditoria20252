@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <%- include("templates/header") %>
+    <style>
+        body {
+            background: url('/img/fireworks.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: Arial, sans-serif;
+        }
+        .register-container {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 800px;
+            margin: 50px auto;
+            position: relative;
+            z-index: 1;
+        }
+        .floating-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 250px;
+        }
+        .form-control:invalid {
+            border-color: red;
+        }
+        .form-control:valid {
+            border-color: green;
+        }
+    </style>
+</head>
+<body>
+<div id="alertContainer" class="floating-alert">
+    <% if (typeof message !== "undefined") { %>
+        <div class="alert alert-<%= messageType %> alert-dismissible fade show" role="alert">
+            <%= message %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <% } %>
+</div>
+
+
+<div class="register-container shadow">
+    <h2 class="text-center mb-4">Registro</h2>
+    <form id="registerForm" method="POST" action="/register" novalidate>
+        <div class="row mb-3">
+            <div class="col">
+                <label>Nombre</label>
+                <input type="text" class="form-control" name="nombre" placeholder="Ingresa tu nombre" 
+                       pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,50}" title="Solo letras" required>
+            </div>
+            <div class="col">
+                <label>Apellido</label>
+                <input type="text" class="form-control" name="apellido" placeholder="Ingresa tu apellido" 
+                       pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{1,50}" title="Solo letras" required>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <label>Identificación</label>
+                <input type="text" class="form-control" name="identificacion" placeholder="Ingresa tu identificación" 
+                       pattern="\d{6,15}" title="Solo números" required>
+            </div>
+            <div class="col">
+                <label>Email</label>
+                <input type="email" class="form-control" name="email" placeholder="Ingresa tu email" required>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <label>Contraseña</label>
+                <div class="input-group">
+                    <input type="password" class="form-control" id="password" name="password" 
+                           placeholder="Contraseña" pattern="^(?=.*[a-z])(?=.*[A-Z]).{8,}$" 
+                           title="Debe tener al menos 8 caracteres, una mayúscula y una minúscula" required>
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">👁️</button>
+                </div>
+            </div>
+            <div class="col">
+                <label>Confirmar Contraseña</label>
+                <div class="input-group">
+                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" 
+                           placeholder="Confirma tu contraseña" pattern="^(?=.*[a-z])(?=.*[A-Z]).{8,}$" required>
+                    <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">👁️</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col">
+                <label>Fecha de Nacimiento</label>
+                <input type="date" class="form-control" id="fechaNacimiento" name="fechaNacimiento" required>
+            </div>
+            <div class="col">
+                <label>Teléfono</label>
+                <input type="tel" class="form-control" name="telefono" placeholder="Ingresa tu teléfono" 
+                       pattern="\d{10}" title="Debe tener 10 números" required>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">Registrar</button>
+        <p class="text-center mt-2">¿Ya tienes una cuenta? <a href="/login">Inicia sesión</a></p>
+    </form>
+</div>
+
+<script>
+const togglePassword = document.querySelector('#togglePassword');
+const toggleConfirmPassword = document.querySelector('#toggleConfirmPassword');
+const password = document.querySelector('#password');
+const confirmPassword = document.querySelector('#confirmPassword');
+const form = document.querySelector('#registerForm');
+const alertContainer = document.querySelector('#alertContainer');
+
+togglePassword.addEventListener('click', () => {
+    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+    password.setAttribute('type', type);
+    togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
+});
+toggleConfirmPassword.addEventListener('click', () => {
+    const type = confirmPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+    confirmPassword.setAttribute('type', type);
+    toggleConfirmPassword.textContent = type === 'password' ? '👁️' : '🙈';
+});
+
+function mostrarAlerta(mensaje, tipo = 'danger') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${tipo} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `${mensaje}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+    alertContainer.appendChild(alertDiv);
+    setTimeout(() => { alertDiv.remove(); }, 5000);
+}
+
+// Validaciones previas
+form.addEventListener('submit', (e) => {
+    alertContainer.innerHTML = '';
+    let valid = true;
+
+    const nombre = form.nombre.value.trim();
+    const apellido = form.apellido.value.trim();
+    const identificacion = form.identificacion.value.trim();
+    const email = form.email.value.trim();
+    const telefono = form.telefono.value.trim();
+    const fechaNacimiento = new Date(form.fechaNacimiento.value);
+    const hoy = new Date();
+    const edad = hoy.getFullYear() - fechaNacimiento.getFullYear();
+    const passwordValue = password.value;
+    const confirmPasswordValue = confirmPassword.value;
+
+    // Validar nombre y apellido
+    const nameRegex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/;
+    if (!nameRegex.test(nombre)) { mostrarAlerta('Nombre solo puede contener letras.'); valid = false; }
+    if (!nameRegex.test(apellido)) { mostrarAlerta('Apellido solo puede contener letras.'); valid = false; }
+
+    // Identificación
+    if (!/^\d+$/.test(identificacion)) { mostrarAlerta('Identificación solo puede contener números.'); valid = false; }
+
+    // Email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) { mostrarAlerta('Correo inválido.'); valid = false; }
+
+    // Teléfono
+    if (!/^\d{10}$/.test(telefono)) { mostrarAlerta('Teléfono debe tener 10 números.'); valid = false; }
+
+    // Edad
+    if (edad < 18) { mostrarAlerta('Debes ser mayor de edad.'); valid = false; }
+
+    // Contraseña
+    const passRegex = /^(?=.*[a-z])(?=.*[A-Z]).{8,}$/;
+    if (!passRegex.test(passwordValue)) { mostrarAlerta('Contraseña debe tener mínimo 8 caracteres, 1 mayúscula y 1 minúscula.'); valid = false; }
+    if (passwordValue !== confirmPasswordValue) { mostrarAlerta('Las contraseñas no coinciden.'); valid = false; }
+
+    // Sanitizar inputs
+    const inputs = form.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.value = input.value.replace(/[<>$`|;]/g, '');
+    });
+
+    if (!valid) e.preventDefault();
+});
+
+// Evitar letras en teléfono e identificación mientras escriben
+['telefono','identificacion'].forEach(name => {
+    const field = form[name];
+    field.addEventListener('input', () => {
+        field.value = field.value.replace(/\D/g,'');
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "nombre": "Henry2",
+    "descripcion": "Actividades y charlas",
+    "precio": 200,
+    "stock": 2,
+    "color": "rojo",
+    "imagen": "https://www.google.com/url?sa=i&url=https%3A%2F%2Funsplash.com%2Fes%2Fs%2Ffotos%2Fciudad-de-noche&psig=AOvVaw2rIhU2H9ty0hNCN897MdWB&ust=1757187667658000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCJigpKqwwo8DFQAAAAAdAAAAABAE"
+  }
+]

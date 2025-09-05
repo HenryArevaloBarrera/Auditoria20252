@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <%- include("templates/header") %>
+    <style>
+        body {
+            background: url('/img/fireworks.jpg') no-repeat center center fixed;
+            background-size: cover;
+            font-family: Arial, sans-serif;
+        }
+        .login-container {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            margin: 50px auto;
+            position: relative;
+            z-index: 1;
+        }
+        .floating-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 250px;
+        }
+    </style>
+</head>
+<body>
+<div class="floating-alert" id="alertContainer">
+    <% if (typeof message !== "undefined") { %>
+        <div class="alert alert-<%= messageType %> alert-dismissible fade show" role="alert">
+            <%= message %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <% } %>
+</div>
+
+<div class="login-container shadow">
+    <h2 class="text-center mb-4">Iniciar Sesión</h2>
+    <form id="loginForm" method="POST" action="/login" novalidate>
+        <div class="mb-3">
+    <label>Rol</label>
+    <select class="form-select" name="role" required>
+        <option value="user" selected>Usuario</option>
+        <option value="admin">Administrador</option>
+    </select>
+</div>
+
+        <div class="mb-3">
+            <label>Email</label>
+            <input type="email" class="form-control" name="email" placeholder="Ingresa tu email" required>
+        </div>
+        <div class="mb-3">
+            <label>Contraseña</label>
+            <div class="input-group">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Contraseña" required>
+                <button class="btn btn-outline-secondary" type="button" id="togglePassword">👁️</button>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Ingresar</button>
+        <p class="text-center mt-2">¿No tienes cuenta? <a href="/register">Regístrate aquí</a></p>
+    </form>
+</div>
+
+<script>
+const togglePassword = document.querySelector('#togglePassword');
+const password = document.querySelector('#password');
+const form = document.querySelector('#loginForm');
+const alertContainer = document.querySelector('#alertContainer');
+
+togglePassword.addEventListener('click', () => {
+    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+    password.setAttribute('type', type);
+    togglePassword.textContent = type === 'password' ? '👁️' : '🙈';
+});
+
+function mostrarAlerta(mensaje, tipo='danger') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${tipo} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `${mensaje} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+    alertContainer.appendChild(alertDiv);
+    setTimeout(()=>{ alertDiv.remove(); }, 5000);
+}
+
+// Validaciones previas
+form.addEventListener('submit', (e) => {
+    alertContainer.innerHTML = '';
+    let valid = true;
+
+    const email = form.email.value.trim();
+    const passValue = password.value;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        mostrarAlerta("Correo inválido.");
+        valid = false;
+    }
+    if (passValue.length === 0) {
+        mostrarAlerta("Contraseña no puede estar vacía.");
+        valid = false;
+    }
+
+    if (!valid) e.preventDefault();
+});
+</script>
+</body>
+</html>

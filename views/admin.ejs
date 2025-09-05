@@ -1,0 +1,168 @@
+<%- include("templates/header") %>
+
+<div class="container mt-5">
+  <h2 class="text-center mb-4">Panel de Administración</h2>
+
+  <!-- ALERTA -->
+  <% if (message) { %>
+    <div class="alert alert-<%= messageType %> alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" role="alert" style="z-index: 1050;">
+      <%= message %>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  <% } %>
+
+  <!-- SECCION USUARIOS -->
+  <div class="card shadow-sm p-4 mb-5">
+    <h4 class="mb-3">Usuarios Registrados</h4>
+    <table class="table table-bordered table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% usuarios.forEach((u, index) => { %>
+          <tr>
+            <td><%= index + 1 %></td>
+            <td><%= u.nombre %></td>
+            <td><%= u.apellido %></td>
+            <td><%= u.email %></td>
+            <td><%= u.telefono %></td>
+            <td>
+              <form action="/admin/delete-user" method="POST" style="display:inline;">
+                <input type="hidden" name="email" value="<%= u.email %>">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Seguro que quieres eliminar este usuario?')">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECCION PRODUCTOS -->
+  <div class="card shadow-sm p-4 mb-5">
+    <h4 class="mb-3">Gestión de Productos</h4>
+
+    <!-- FORMULARIO AGREGAR PRODUCTO -->
+    <form action="/admin/add-product" method="POST" class="mb-4">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Nombre</label>
+          <input type="text" name="nombre" class="form-control" required>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Descripción</label>
+          <input type="text" name="descripcion" class="form-control" required>
+        </div>
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Precio</label>
+          <input type="number" name="precio" class="form-control" step="0.01" required>
+        </div>
+        <div class="col-md-2 mb-3">
+          <label class="form-label">Stock</label>
+          <input type="number" name="stock" class="form-control" required>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Color</label>
+          <input type="text" name="color" class="form-control" required>
+        </div>
+        <div class="col-md-8 mb-3">
+          <label class="form-label">URL de la Imagen</label>
+          <input type="url" name="imagen" class="form-control" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success">Agregar Producto</button>
+    </form>
+
+    <!-- TABLA DE PRODUCTOS -->
+    <table class="table table-bordered table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th>Precio</th>
+          <th>Stock</th>
+          <th>Color</th>
+          <th>Imagen</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% productos.forEach(producto => { %>
+          <tr>
+            <td><%= producto.id %></td>
+            <td><%= producto.nombre %></td>
+            <td><%= producto.descripcion %></td>
+            <td>$<%= producto.precio %></td>
+            <td><%= producto.stock %></td>
+            <td><%= producto.color %></td>
+            <td><img src="<%= producto.imagen %>" alt="Imagen" style="width:50px; height:50px;"></td>
+            <td>
+              <form action="/admin/delete-product" method="POST" style="display:inline;">
+                <input type="hidden" name="id" value="<%= producto.id %>">
+                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+              </form>
+              <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal<%= producto.id %>">Editar</button>
+            </td>
+          </tr>
+
+          <!-- MODAL EDITAR PRODUCTO -->
+          <div class="modal fade" id="editModal<%= producto.id %>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <form action="/admin/edit-product" method="POST">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Editar Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <input type="hidden" name="id" value="<%= producto.id %>">
+                    <div class="mb-3">
+                      <label class="form-label">Nombre</label>
+                      <input type="text" name="nombre" class="form-control" value="<%= producto.nombre %>" required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Descripción</label>
+                      <input type="text" name="descripcion" class="form-control" value="<%= producto.descripcion %>" required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Precio</label>
+                      <input type="number" name="precio" class="form-control" value="<%= producto.precio %>" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Stock</label>
+                      <input type="number" name="stock" class="form-control" value="<%= producto.stock %>" required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Color</label>
+                      <input type="text" name="color" class="form-control" value="<%= producto.color %>" required>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">URL Imagen</label>
+                      <input type="url" name="imagen" class="form-control" value="<%= producto.imagen %>" required>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include("templates/footer") %>

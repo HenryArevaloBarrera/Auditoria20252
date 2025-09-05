@@ -1,0 +1,20 @@
+[
+  {
+    "nombre": "Henry121",
+    "apellido": "Arevalo",
+    "identificacion": "10575713",
+    "email": "E@uptc.edu.co",
+    "password": "$2b$10$owMH4gkmiGc0sBOJelL0MOZrbdHKIxSmgsxqsKrskWS8wdvFZm7RC",
+    "fechaNacimiento": "1996-02-15",
+    "telefono": "1057571304"
+  },
+  {
+    "nombre": "Henry Hair",
+    "apellido": "Arevalo",
+    "identificacion": "1057571304",
+    "email": "henry.arevalo@uptc.edu.co",
+    "password": "$2b$10$BqKJeyNoK2QW5quoL8a1zOKMLCSPmoHrmaYdWBRCl9Ni8zuc6ymsS",
+    "fechaNacimiento": "1999-05-04",
+    "telefono": "3102779862"
+  }
+]
