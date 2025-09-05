@@ -1,285 +1,315 @@
 import express from "express";
-import fs from "fs";
-import path from "path";
 import bcrypt from "bcrypt";
+import { supabase } from "./supabase.js"; // tu conexión a Supabase
 
 const router = express.Router();
 
-// ================== PATHS ==================
-const usuariosPath = path.resolve("./resources/usuarios.json");
-const productosPath = path.resolve("./resources/productos.json");
-const AdminPath = path.resolve("./resources/admin.json"); // ruta al JSON
-
-// ================== FUNCIONES ==================
-
-// Leer usuarios
-function leerUsuarios() {
-  if (!fs.existsSync(usuariosPath)) return [];
-  const data = fs.readFileSync(usuariosPath, "utf-8");
-  return JSON.parse(data);
-}
-
-// Guardar usuarios
-function guardarUsuarios(usuarios) {
-  fs.writeFileSync(usuariosPath, JSON.stringify(usuarios, null, 2));
-}
-
-// Funciones genéricas JSON (usuarios/productos)
-function leerJSON(ruta) {
-  if (!fs.existsSync(ruta)) return [];
-  return JSON.parse(fs.readFileSync(ruta, "utf-8"));
-}
-
-function guardarJSON(ruta, data) {
-  fs.writeFileSync(ruta, JSON.stringify(data, null, 2));
-}
-
-// Middleware para proteger rutas de admin
-function isAdmin(req, res, next) {
+// ================== MIDDLEWARE ==================
+async function isAdmin(req, res, next) {
   if (!req.session.user || req.session.user.role !== "admin") {
+    console.log("No es admin o no está logueado");
     return res.redirect("/login");
   }
+  console.log("Usuario admin verificado");
   next();
 }
 
 // ================== RUTAS ==================
 
 // Página principal
-router.get("/", (req, res) => {
-  const data = leerUsuarios();
-  res.render("index.ejs", { data, title: "Mi Página Principal" });
+router.get("/", async (req, res) => {
+  console.log("GET / -> Consultando usuarios");
+  try {
+    const { data: usuarios, error } = await supabase.from("usuarios").select("*");
+    if (error) throw error;
+    console.log("Usuarios obtenidos:", usuarios.length);
+    res.render("index.ejs", { data: usuarios, title: "Mi Página Principal" });
+  } catch (error) {
+    console.error("Error obteniendo usuarios:", error.message);
+    res.render("index.ejs", { data: [], title: "Mi Página Principal" });
+  }
 });
 
 // ================= Registro =================
-router.get("/register", (req, res) => {
-  res.render("register.ejs", { data: leerUsuarios(), title: "Registro de Usuario" });
+router.get("/register", async (req, res) => {
+  console.log("GET /register -> Mostrando formulario");
+  res.render("register.ejs", { data: [], title: "Registro de Usuario" });
 });
 
 router.post("/register", async (req, res) => {
+  console.log("POST /register -> Registrando usuario");
   try {
     const { nombre, apellido, identificacion, email, password, fechaNacimiento, telefono } = req.body;
-    const usuarios = leerUsuarios();
 
-    if (usuarios.some(u => u.email === email)) {
+    // Verificar si ya existe
+    const { data: existingUser } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existingUser) {
+      console.log("Email ya registrado:", email);
       return res.render("register.ejs", {
-        data: usuarios,
-        title: "Registro de Usuario",
         message: "El email ya está registrado.",
-        messageType: "warning"
+        messageType: "warning",
+        title: "Registro"
       });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const nuevoUsuario = { nombre, apellido, identificacion, email, password: hashedPassword, fechaNacimiento, telefono };
-    usuarios.push(nuevoUsuario);
-    guardarUsuarios(usuarios);
+
+    // Insertar y devolver el nuevo usuario
+    const { data, error } = await supabase
+      .from("usuarios")
+      .insert([{
+  nombre,
+  apellido,
+  identificacion,
+  email,
+  password: hashedPassword,
+  fechanacimiento: fechaNacimiento, // 👈 cambia aquí
+  telefono
+}])
+
+      .select();
+
+    if (error) throw error;
+
+    console.log("✅ Usuario insertado:", data[0]);
 
     res.render("register.ejs", {
-      data: usuarios,
-      title: "Registro de Usuario",
       message: "Usuario registrado correctamente.",
-      messageType: "success"
+      messageType: "success",
+      title: "Registro"
     });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error registrando usuario:", error.message);
     res.render("register.ejs", {
-      data: leerUsuarios(),
-      title: "Registro de Usuario",
       message: "Error al registrar el usuario.",
-      messageType: "danger"
+      messageType: "danger",
+      title: "Registro"
     });
   }
 });
 
+
 // ================= Login =================
 router.get("/login", (req, res) => {
+  console.log("GET /login -> Mostrando formulario");
   res.render("login.ejs", { message: null, messageType: null, title: "Iniciar Sesión" });
 });
 
 router.post("/login", async (req, res) => {
-  const { email, password, role } = req.body;
+  console.log("POST /login -> Intentando iniciar sesión");
+  try {
+    const { email, password, role } = req.body;
+    let user;
 
-  let user;
-  if (role === "admin") {
-    const admins = leerJSON(AdminPath);
-    user = admins.find(u => u.email === email);
-  } else {
-    const usuarios = leerUsuarios();
-    user = usuarios.find(u => u.email === email);
+    if (role === "admin") {
+      const { data: admins } = await supabase.from("admins").select("*").eq("email", email).single();
+      user = admins;
+      console.log("Buscando admin:", email);
+    } else {
+      const { data: usuarios } = await supabase.from("usuarios").select("*").eq("email", email).single();
+      user = usuarios;
+      console.log("Buscando usuario:", email);
+    }
+
+    if (!user) {
+      console.log("Usuario no encontrado");
+      return res.render("login.ejs", { message: "Datos Incorrectos.", messageType: "warning", title: "Iniciar Sesión" });
+    }
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      console.log("Contraseña incorrecta");
+      return res.render("login.ejs", { message: "Datos Incorrectos.", messageType: "danger", title: "Iniciar Sesión" });
+    }
+
+    req.session.user = { nombre: user.nombre, apellido: user.apellido, email: user.email, role };
+    console.log("Usuario logueado:", email);
+
+    if (role === "admin") return res.redirect("/admin");
+    res.redirect("/");
+  } catch (error) {
+    console.error("Error en login:", error.message);
+    res.render("login.ejs", { message: "Error al iniciar sesión.", messageType: "danger", title: "Iniciar Sesión" });
   }
-
-  if (!user) {
-    return res.render("login.ejs", { message: "Datos Incorrectos.", messageType: "warning", title: "Iniciar Sesión" });
-  }
-
-  const match = await bcrypt.compare(password, user.password);
-  if (!match) {
-    return res.render("login.ejs", { message: "Datos Incorrectos.", messageType: "danger", title: "Iniciar Sesión" });
-  }
-
-  req.session.user = {
-    nombre: user.nombre,
-    apellido: user.apellido,
-    email: user.email,
-    role: role
-  };
-
-  if (role === "admin") return res.redirect("/admin");
-  res.redirect("/");
 });
 
 // ================= Logout =================
 router.get("/logout", (req, res) => {
+  console.log("GET /logout -> Cerrando sesión");
   req.session.destroy(err => {
-    if (err) console.error(err);
+    if (err) console.error("Error cerrando sesión:", err);
     res.redirect("/login");
   });
 });
 
 // ================= Perfil =================
-// ================= Perfil =================
-router.get("/perfil", (req, res) => {
+router.get("/perfil", async (req, res) => {
+  console.log("GET /perfil -> Mostrando perfil");
   if (!req.session.user) return res.redirect("/login");
-
-  // Si es admin, redirige a /admin
   if (req.session.user.role === "admin") return res.redirect("/admin");
 
-  const usuarios = leerUsuarios();
-  const user = usuarios.find(u => u.email === req.session.user.email);
-  if (!user) return res.redirect("/login");
-
-  res.render("perfil.ejs", { 
-    user, 
-    title: "Mi Perfil",
-    message: null, 
-    messageType: null 
-  });
+  try {
+    const { data: user, error } = await supabase.from("usuarios").select("*").eq("email", req.session.user.email).single();
+    if (error) throw error;
+    res.render("perfil.ejs", { user, title: "Mi Perfil", message: null, messageType: null });
+  } catch (error) {
+    console.error("Error cargando perfil:", error.message);
+    res.redirect("/login");
+  }
 });
 
-
 router.post("/perfil/update", async (req, res) => {
+  console.log("POST /perfil/update -> Actualizando datos");
   if (!req.session.user) return res.redirect("/login");
-  const { nombre, apellido, telefono, password } = req.body;
-  const usuarios = leerUsuarios();
-  const userIndex = usuarios.findIndex(u => u.email === req.session.user.email);
 
-  if (userIndex === -1) return res.redirect("/login");
+  try {
+    const { nombre, apellido, telefono, password } = req.body;
+    const { data: user } = await supabase.from("usuarios").select("*").eq("email", req.session.user.email).single();
 
-  const match = await bcrypt.compare(password, usuarios[userIndex].password);
-  if (!match) {
-    return res.render("perfil.ejs", { user: usuarios[userIndex], message: "Contraseña incorrecta", messageType: "danger" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      console.log("Contraseña incorrecta al actualizar perfil");
+      return res.render("perfil.ejs", { user, message: "Contraseña incorrecta", messageType: "danger", title: "Mi Perfil" });
+    }
+
+    await supabase.from("usuarios").update({ nombre, apellido, telefono }).eq("email", req.session.user.email);
+    req.session.user.nombre = nombre;
+    req.session.user.apellido = apellido;
+    console.log("Perfil actualizado:", req.session.user.email);
+
+    res.render("perfil.ejs", { user: { ...user, nombre, apellido, telefono }, message: "Datos actualizados", messageType: "success", title: "Mi Perfil" });
+  } catch (error) {
+    console.error("Error actualizando perfil:", error.message);
+    res.render("perfil.ejs", { message: "Error al actualizar datos", messageType: "danger", title: "Mi Perfil" });
   }
-
-  usuarios[userIndex].nombre = nombre;
-  usuarios[userIndex].apellido = apellido;
-  usuarios[userIndex].telefono = telefono;
-
-  guardarUsuarios(usuarios);
-  req.session.user.nombre = nombre;
-  req.session.user.apellido = apellido;
-
-  res.render("perfil.ejs", { user: usuarios[userIndex], title: "Mi Perfil", message: "Datos actualizados", messageType: "success" });
 });
 
 router.post("/perfil/update-password", async (req, res) => {
+  console.log("POST /perfil/update-password -> Cambiando contraseña");
   if (!req.session.user) return res.redirect("/login");
-  const { oldPassword, newPassword, confirmNewPassword } = req.body;
-  const usuarios = leerUsuarios();
-  const userIndex = usuarios.findIndex(u => u.email === req.session.user.email);
 
-  if (userIndex === -1) return res.redirect("/login");
+  try {
+    const { oldPassword, newPassword, confirmNewPassword } = req.body;
+    const { data: user } = await supabase.from("usuarios").select("*").eq("email", req.session.user.email).single();
 
-  const match = await bcrypt.compare(oldPassword, usuarios[userIndex].password);
-  if (!match) return res.render("perfil.ejs", { user: usuarios[userIndex], title: "Mi Perfil", message: "Contraseña actual incorrecta", messageType: "danger" });
+    const match = await bcrypt.compare(oldPassword, user.password);
+    if (!match) {
+      console.log("Contraseña actual incorrecta");
+      return res.render("perfil.ejs", { user, title: "Mi Perfil", message: "Contraseña actual incorrecta", messageType: "danger" });
+    }
 
-  if (newPassword !== confirmNewPassword) return res.render("perfil.ejs", { user: usuarios[userIndex], title: "Mi Perfil", message: "Las nuevas contraseñas no coinciden", messageType: "warning" });
+    if (newPassword !== confirmNewPassword) {
+      console.log("Nuevas contraseñas no coinciden");
+      return res.render("perfil.ejs", { user, title: "Mi Perfil", message: "Las nuevas contraseñas no coinciden", messageType: "warning" });
+    }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
-  usuarios[userIndex].password = hashedPassword;
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await supabase.from("usuarios").update({ password: hashedPassword }).eq("email", req.session.user.email);
+    console.log("Contraseña actualizada para:", req.session.user.email);
 
-  guardarUsuarios(usuarios);
-  res.render("perfil.ejs", { user: usuarios[userIndex], title: "Mi Perfil", message: "Contraseña actualizada", messageType: "success" });
+    res.render("perfil.ejs", { user: { ...user, password: hashedPassword }, title: "Mi Perfil", message: "Contraseña actualizada", messageType: "success" });
+  } catch (error) {
+    console.error("Error cambiando contraseña:", error.message);
+    res.render("perfil.ejs", { message: "Error al actualizar contraseña", messageType: "danger", title: "Mi Perfil" });
+  }
 });
 
 router.post("/perfil/delete", async (req, res) => {
+  console.log("POST /perfil/delete -> Eliminando usuario");
   if (!req.session.user) return res.redirect("/login");
-  const { password } = req.body;
-  let usuarios = leerUsuarios();
-  const userIndex = usuarios.findIndex(u => u.email === req.session.user.email);
 
-  if (userIndex === -1) return res.redirect("/login");
+  try {
+    const { password } = req.body;
+    const { data: user } = await supabase.from("usuarios").select("*").eq("email", req.session.user.email).single();
 
-  const match = await bcrypt.compare(password, usuarios[userIndex].password);
-  if (!match) return res.render("perfil.ejs", { user: usuarios[userIndex], title: "Mi Perfil", message: "Contraseña incorrecta", messageType: "danger" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      console.log("Contraseña incorrecta al eliminar usuario");
+      return res.render("perfil.ejs", { user, title: "Mi Perfil", message: "Contraseña incorrecta", messageType: "danger" });
+    }
 
-  usuarios.splice(userIndex, 1);
-  guardarUsuarios(usuarios);
-  req.session.destroy();
-  res.redirect("/register");
+    await supabase.from("usuarios").delete().eq("email", req.session.user.email);
+    console.log("Usuario eliminado:", req.session.user.email);
+    req.session.destroy();
+    res.redirect("/register");
+  } catch (error) {
+    console.error("Error eliminando usuario:", error.message);
+    res.redirect("/perfil");
+  }
 });
 
 // ================= PANEL ADMIN =================
-router.get("/admin", isAdmin, (req, res) => {
-  const usuarios = leerJSON(usuariosPath);
-  const productos = leerJSON(productosPath);
-  res.render("admin.ejs", {
-    usuarios,
-    productos,
-    title: "Panel de Administración",
-    message: null,
-    messageType: null
-  });
+router.get("/admin", isAdmin, async (req, res) => {
+  console.log("GET /admin -> Cargando panel de admin");
+  try {
+    const { data: usuarios } = await supabase.from("usuarios").select("*");
+    const { data: productos } = await supabase.from("productos").select("*");
+    console.log("Usuarios y productos cargados");
+
+    res.render("admin.ejs", { usuarios, productos, title: "Panel de Administración", message: null, messageType: null });
+  } catch (error) {
+    console.error("Error cargando admin:", error.message);
+    res.render("admin.ejs", { usuarios: [], productos: [], title: "Panel de Administración", message: "Error cargando datos", messageType: "danger" });
+  }
 });
 
 // ================= USUARIOS =================
-router.post("/admin/delete-user", isAdmin, (req, res) => {
-  const { email } = req.body;
-  let usuarios = leerJSON(usuariosPath);
-  usuarios = usuarios.filter(u => u.email !== email);
-  guardarJSON(usuariosPath, usuarios);
-  res.redirect("/admin");
+router.post("/admin/delete-user", isAdmin, async (req, res) => {
+  console.log("POST /admin/delete-user -> Eliminando usuario");
+  try {
+    const { email } = req.body;
+    await supabase.from("usuarios").delete().eq("email", email);
+    console.log("Usuario eliminado:", email);
+    res.redirect("/admin");
+  } catch (error) {
+    console.error("Error eliminando usuario:", error.message);
+    res.redirect("/admin");
+  }
 });
 
 // ================= PRODUCTOS =================
-router.post("/admin/add-product", isAdmin, (req, res) => {
-  const { nombre, descripcion, precio, stock, color, imagen } = req.body;
-  const productos = leerJSON(productosPath);
-  const newId = productos.length > 0 ? productos[productos.length - 1].id + 1 : 1;
-
-  const nuevoProducto = {
-    id: newId,
-    nombre,
-    descripcion,
-    precio: parseFloat(precio),
-    stock: parseInt(stock),
-    color,
-    imagen
-  };
-
-  productos.push(nuevoProducto);
-  guardarJSON(productosPath, productos);
-  res.redirect("/admin");
-});
-
-router.post("/admin/edit-product", isAdmin, (req, res) => {
-  const { id, nombre, descripcion, precio, stock, color, imagen } = req.body;
-  const productos = leerJSON(productosPath);
-  const index = productos.findIndex(p => p.id === parseInt(id));
-
-  if (index !== -1) {
-    productos[index] = { id: parseInt(id), nombre, descripcion, precio: parseFloat(precio), stock: parseInt(stock), color, imagen };
-    guardarJSON(productosPath, productos);
+router.post("/admin/add-product", isAdmin, async (req, res) => {
+  console.log("POST /admin/add-product -> Agregando producto");
+  try {
+    const { nombre, descripcion, precio, stock, color, imagen } = req.body;
+    await supabase.from("productos").insert([{ nombre, descripcion, precio: parseFloat(precio), stock: parseInt(stock), color, imagen }]);
+    console.log("Producto agregado:", nombre);
+    res.redirect("/admin");
+  } catch (error) {
+    console.error("Error agregando producto:", error.message);
+    res.redirect("/admin");
   }
-
-  res.redirect("/admin");
 });
 
-router.post("/admin/delete-product", isAdmin, (req, res) => {
-  const { id } = req.body;
-  let productos = leerJSON(productosPath);
-  productos = productos.filter(p => p.id !== parseInt(id));
-  guardarJSON(productosPath, productos);
-  res.redirect("/admin");
+router.post("/admin/edit-product", isAdmin, async (req, res) => {
+  console.log("POST /admin/edit-product -> Editando producto");
+  try {
+    const { id, nombre, descripcion, precio, stock, color, imagen } = req.body;
+    await supabase.from("productos").update({ nombre, descripcion, precio: parseFloat(precio), stock: parseInt(stock), color, imagen }).eq("id", parseInt(id));
+    console.log("Producto actualizado:", id);
+    res.redirect("/admin");
+  } catch (error) {
+    console.error("Error editando producto:", error.message);
+    res.redirect("/admin");
+  }
+});
+
+router.post("/admin/delete-product", isAdmin, async (req, res) => {
+  console.log("POST /admin/delete-product -> Eliminando producto");
+  try {
+    const { id } = req.body;
+    await supabase.from("productos").delete().eq("id", parseInt(id));
+    console.log("Producto eliminado:", id);
+    res.redirect("/admin");
+  } catch (error) {
+    console.error("Error eliminando producto:", error.message);
+    res.redirect("/admin");
+  }
 });
 
 export default router;
