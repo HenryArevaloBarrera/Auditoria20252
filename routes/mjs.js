@@ -1,5 +1,5 @@
 import express from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { supabase } from "./supabase.js"; // tu conexión a Supabase
 
 const router = express.Router();
