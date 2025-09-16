@@ -7,5 +7,14 @@
     "password": "$2b$10$owMH4gkmiGc0sBOJelL0MOZrbdHKIxSmgsxqsKrskWS8wdvFZm7RC",
     "fechaNacimiento": "1996-02-15",
     "telefono": "1057571304"
+  },
+  {
+    "nombre": "Luis",
+    "apellido": "Robelto",
+    "identificacion": "100361120",
+    "email": "luis.robelto@uptc.edu.co",
+    "password": "123123",
+    "fechaNacimiento": "1999-02-15",
+    "telefono": "3103695004"
   }
 ]
