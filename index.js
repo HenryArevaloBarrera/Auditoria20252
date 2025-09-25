@@ -4,6 +4,7 @@ import routes from "./routes/mjs.js";
 import path from 'path';
 import session from "express-session";
 import logoutRoute from './routes/logout.js';
+import adminRoutes from "./routes/admin.js"; 
 
 const app = express();
 
@@ -17,7 +18,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "mi-secreto-super-seguro",
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 5 * 60 * 1000 } // 5 minutos
+  cookie: { maxAge: 1 * 60 * 1000 } // 1 minuto
 }));
 
 // --------------------- Evitar caché --------------------- //
@@ -40,10 +41,11 @@ app.set('view engine', 'ejs');
 app.set('PORT', process.env.PORT || 3000);
 
 // --------------------- Rutas --------------------- //
-app.use('/', routes);
-app.use('/', logoutRoute);
+app.use('/', routes);        // mjs.js
+app.use('/', logoutRoute);   // logout.js
+app.use('/', adminRoutes);   // ✅ admin.js
 
-// ✅ Ya no es necesario pasar `user` aquí, pero si quieres, puedes dejarlo
+// ✅ Ruta principal
 app.get('/', (req, res) => {
   res.render('index', { title: 'Inicio' });
 });

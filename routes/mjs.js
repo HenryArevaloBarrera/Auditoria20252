@@ -1,6 +1,13 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import { supabase } from "./supabase.js"; // tu conexión a Supabase
+import { supabase,
+  getUserByEmail,
+  updateFailedAttempts,
+  blockUser,
+  resetAttempts,
+unblockUser} from "./supabase.js"; // tu conexión a Supabase
+
+
 
 const router = express.Router();
 
@@ -94,7 +101,7 @@ router.post("/register", async (req, res) => {
 });
 
 
-// ================= Login =================
+// ================== LOGIN ==================
 router.get("/login", (req, res) => {
   console.log("GET /login -> Mostrando formulario");
   res.render("login.ejs", { message: null, messageType: null, title: "Iniciar Sesión" });
@@ -104,39 +111,95 @@ router.post("/login", async (req, res) => {
   console.log("POST /login -> Intentando iniciar sesión");
   try {
     const { email, password, role } = req.body;
-    let user;
 
+    // 1. Buscar usuario según rol
+    let user;
     if (role === "admin") {
-      const { data: admins } = await supabase.from("admins").select("*").eq("email", email).single();
-      user = admins;
-      console.log("Buscando admin:", email);
+      const { data: admin } = await supabase
+        .from("admins")
+        .select("*")
+        .eq("email", email)
+        .maybeSingle();
+      user = admin;
+      console.log("👑 Buscando admin:", email);
     } else {
-      const { data: usuarios } = await supabase.from("usuarios").select("*").eq("email", email).single();
-      user = usuarios;
-      console.log("Buscando usuario:", email);
+      user = await getUserByEmail(email); // helper con supabase
+      console.log("👤 Buscando usuario:", email);
     }
 
     if (!user) {
-      console.log("Usuario no encontrado");
-      return res.render("login.ejs", { message: "Datos Incorrectos.", messageType: "warning", title: "Iniciar Sesión" });
+      console.log("❌ Usuario no encontrado:", email);
+      return res.render("login.ejs", {
+        message: "Usuario no encontrado",
+        messageType: "warning",
+        title: "Iniciar Sesión"
+      });
     }
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      console.log("Contraseña incorrecta");
-      return res.render("login.ejs", { message: "Datos Incorrectos.", messageType: "danger", title: "Iniciar Sesión" });
+    console.log(`➡️ Usuario encontrado: ${user.email}, intentos fallidos: ${user.intentos_fallidos || 0}, bloqueado: ${user.bloqueado}`);
+
+    // 2. Verificar si está bloqueado
+    if (user.bloqueado) {
+      console.log("🚫 Usuario bloqueado, acceso denegado.");
+      return res.render("login.ejs", {
+        message: "⚠️ Tu cuenta está bloqueada. Debe ser desbloqueada por el administrador.",
+        messageType: "danger",
+        title: "Iniciar Sesión"
+      });
     }
 
-    req.session.user = { nombre: user.nombre, apellido: user.apellido, email: user.email, role };
-    console.log("Usuario logueado:", email);
+    // 3. Comparar contraseña
+    const validPassword = await bcrypt.compare(password, user.password);
 
+    if (!validPassword) {
+      const intentos = (user.intentos_fallidos || 0) + 1;
+      console.log(`❌ Contraseña incorrecta para ${email}. Intentos fallidos ahora: ${intentos}`);
+
+      if (intentos >= 3) {
+        console.log("🚨 Usuario bloqueado automáticamente:", email);
+        await blockUser(email);
+        return res.render("login.ejs", {
+          message: "🚫 Cuenta bloqueada por seguridad (3 intentos fallidos). Contacta al administrador.",
+          messageType: "danger",
+          title: "Iniciar Sesión"
+        });
+      } else {
+        await updateFailedAttempts(email, intentos);
+        return res.render("login.ejs", {
+          message: `Contraseña incorrecta. Intentos fallidos: ${intentos}/3`,
+          messageType: "danger",
+          title: "Iniciar Sesión"
+        });
+      }
+    }
+
+    // ✅ Login correcto → resetear intentos
+    console.log(`✅ Usuario autenticado correctamente: ${email}, reseteando intentos fallidos.`);
+    await resetAttempts(email);
+
+    // Guardar sesión
+    req.session.user = {
+      id: user.id,
+      nombre: user.nombre,
+      apellido: user.apellido,
+      email: user.email,
+      role
+    };
+
+    console.log("🎉 Sesión iniciada para:", email);
     if (role === "admin") return res.redirect("/admin");
-    res.redirect("/");
+    return res.redirect("/");
+
   } catch (error) {
-    console.error("Error en login:", error.message);
-    res.render("login.ejs", { message: "Error al iniciar sesión.", messageType: "danger", title: "Iniciar Sesión" });
+    console.error("💥 Error en login:", error.message);
+    return res.render("login.ejs", {
+      message: "Error al iniciar sesión",
+      messageType: "danger",
+      title: "Iniciar Sesión"
+    });
   }
 });
+
 
 // ================= Logout =================
 router.get("/logout", (req, res) => {
@@ -244,19 +307,45 @@ router.post("/perfil/delete", async (req, res) => {
 });
 
 // ================= PANEL ADMIN =================
+
 router.get("/admin", isAdmin, async (req, res) => {
   console.log("GET /admin -> Cargando panel de admin");
   try {
+    // 1. Usuarios normales
     const { data: usuarios } = await supabase.from("usuarios").select("*");
-    const { data: productos } = await supabase.from("productos").select("*");
-    console.log("Usuarios y productos cargados");
 
-    res.render("admin.ejs", { usuarios, productos, title: "Panel de Administración", message: null, messageType: null });
+    // 2. Productos
+    const { data: productos } = await supabase.from("productos").select("*");
+
+    // 3. Usuarios bloqueados
+    const { data: bloqueados } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("bloqueado", true); // 👈 asegúrate que tu columna se llame así
+
+    console.log("Usuarios, productos y bloqueados cargados");
+
+    res.render("admin.ejs", { 
+      usuarios: usuarios || [], 
+      productos: productos || [], 
+      bloqueados: bloqueados || [],   // 👈 ahora sí lo pasas
+      title: "Panel de Administración", 
+      message: null, 
+      messageType: null 
+    });
   } catch (error) {
     console.error("Error cargando admin:", error.message);
-    res.render("admin.ejs", { usuarios: [], productos: [], title: "Panel de Administración", message: "Error cargando datos", messageType: "danger" });
+    res.render("admin.ejs", { 
+      usuarios: [], 
+      productos: [], 
+      bloqueados: [],  // 👈 también aquí
+      title: "Panel de Administración", 
+      message: "Error cargando datos", 
+      messageType: "danger" 
+    });
   }
 });
+
 
 // ================= USUARIOS =================
 router.post("/admin/delete-user", isAdmin, async (req, res) => {

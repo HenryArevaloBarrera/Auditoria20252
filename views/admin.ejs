@@ -159,10 +159,51 @@
               </div>
             </div>
           </div>
-        <% }) %>
+        <% }) %> <!-- 👈 aquí cerramos el bucle de productos -->
+      </tbody>
+    </table>
+  </div> <!-- 👈 cerramos card de productos -->
+
+  <!-- SECCION USUARIOS BLOQUEADOS -->
+  <div class="card shadow-sm p-4 mb-5 border-danger">
+    <h4 class="mb-3 text-danger">Usuarios Bloqueados</h4>
+    <table class="table table-bordered table-hover">
+      <thead class="table-danger">
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>Email</th>
+          <th>Intentos Fallidos</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (bloqueados.length === 0) { %>
+          <tr>
+            <td colspan="6" class="text-center">✅ No hay usuarios bloqueados</td>
+          </tr>
+        <% } else { %>
+          <% bloqueados.forEach((u, index) => { %>
+            <tr>
+              <td><%= index + 1 %></td>
+              <td><%= u.nombre %></td>
+              <td><%= u.apellido %></td>
+              <td><%= u.email %></td>
+              <td><%= u.intentos_fallidos %></td>
+              <td>
+                <form action="/admin/unblock-user" method="POST" style="display:inline;">
+                  <input type="hidden" name="email" value="<%= u.email %>">
+                  <button type="submit" class="btn btn-success btn-sm">Desbloquear</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        <% } %>
       </tbody>
     </table>
   </div>
 </div>
 
 <%- include("templates/footer") %>
+

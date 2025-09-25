@@ -53,5 +53,64 @@ export async function testConnection() {
   }
 }
 
+
+// ✅ Actualizar intentos fallidos
+export async function updateFailedAttempts(email, intentos) {
+  try {
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ intentos_fallidos: intentos })
+      .eq("email", email);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("❌ Error actualizando intentos:", err.message);
+  }
+}
+
+// ✅ Bloquear usuario
+export async function blockUser(email) {
+  try {
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ bloqueado: true })
+      .eq("email", email);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("❌ Error bloqueando usuario:", err.message);
+  }
+}
+
+// ✅ Resetear intentos al hacer login correcto
+export async function resetAttempts(email) {
+  try {
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ intentos_fallidos: 0 })
+      .eq("email", email);
+
+    if (error) throw error;
+  } catch (err) {
+    console.error("❌ Error reseteando intentos:", err.message);
+  }
+}
+
+// ✅ Desbloquear usuario
+
+export async function unblockUser(email) {
+  try {
+    const { error } = await supabase
+      .from("usuarios")
+      .update({ bloqueado: false, intentos_fallidos: 0 }) // lo desbloquea y reinicia intentos
+      .eq("email", email);
+
+    if (error) throw error;
+    console.log(`✅ Usuario desbloqueado: ${email}`);
+  } catch (err) {
+    console.error("❌ Error desbloqueando usuario:", err.message);
+  }
+}
+
 // Ejecutar prueba al iniciar
 testConnection();
