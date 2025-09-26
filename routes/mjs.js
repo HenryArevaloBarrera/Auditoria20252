@@ -146,9 +146,9 @@ router.post("/login", async (req, res) => {
     }
 
     if (!user) {
-      console.log("❌ Usuario no encontrado:", email);
+      console.log("❌ Datos Incorrectos:", email);
       return res.render("login.ejs", {
-        message: "Usuario no encontrado",
+        message: "Usuario o contraseña incorrectas",
         messageType: "warning",
         title: "Iniciar Sesión"
       });
@@ -184,7 +184,7 @@ router.post("/login", async (req, res) => {
       } else {
         await updateFailedAttempts(email, intentos);
         return res.render("login.ejs", {
-          message: `Contraseña incorrecta. Intentos fallidos: ${intentos}/3`,
+          message: `Datos incorrectos. Intentos fallidos: ${intentos}/3`,
           messageType: "danger",
           title: "Iniciar Sesión"
         });

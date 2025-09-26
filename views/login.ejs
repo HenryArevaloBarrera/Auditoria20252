@@ -102,7 +102,7 @@ form.addEventListener('submit', (e) => {
     const passValue = password.value;
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        mostrarAlerta("Correo inválido.");
+        mostrarAlerta("Datos incorrectos.");
         valid = false;
     }
     if (passValue.length === 0) {
