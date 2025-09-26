@@ -1,4 +1,5 @@
 import express from "express";
+import fetch from "node-fetch";
 import bcrypt from "bcryptjs";
 import { supabase,
   getUserByEmail,
@@ -101,6 +102,7 @@ router.post("/register", async (req, res) => {
 });
 
 
+
 // ================== LOGIN ==================
 router.get("/login", (req, res) => {
   console.log("GET /login -> Mostrando formulario");
@@ -110,9 +112,25 @@ router.get("/login", (req, res) => {
 router.post("/login", async (req, res) => {
   console.log("POST /login -> Intentando iniciar sesión");
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, "g-recaptcha-response": recaptchaToken } = req.body;
 
-    // 1. Buscar usuario según rol
+    // 1. Validar reCAPTCHA con Google
+    const secretKey = "6LepYtUrAAAAAHAo1D_y2P8qCf-_7rmXDk9OjL7w"; // tu SECRET KEY
+    const verifyURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
+
+    const captchaResponse = await fetch(verifyURL, { method: "POST" });
+    const captchaData = await captchaResponse.json();
+
+    if (!captchaData.success) {
+      console.log("❌ reCAPTCHA inválido para:", email);
+      return res.render("login.ejs", {
+        message: "⚠️ Verificación de reCAPTCHA fallida. Intenta de nuevo.",
+        messageType: "danger",
+        title: "Iniciar Sesión"
+      });
+    }
+
+    // 2. Buscar usuario según rol
     let user;
     if (role === "admin") {
       const { data: admin } = await supabase
@@ -138,7 +156,7 @@ router.post("/login", async (req, res) => {
 
     console.log(`➡️ Usuario encontrado: ${user.email}, intentos fallidos: ${user.intentos_fallidos || 0}, bloqueado: ${user.bloqueado}`);
 
-    // 2. Verificar si está bloqueado
+    // 3. Verificar si está bloqueado
     if (user.bloqueado) {
       console.log("🚫 Usuario bloqueado, acceso denegado.");
       return res.render("login.ejs", {
@@ -148,7 +166,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // 3. Comparar contraseña
+    // 4. Comparar contraseña
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
@@ -199,7 +217,6 @@ router.post("/login", async (req, res) => {
     });
   }
 });
-
 
 // ================= Logout =================
 router.get("/logout", (req, res) => {

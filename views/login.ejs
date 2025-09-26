@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
     <%- include("templates/header") %>
+    
     <style>
         body {
             background: url('/img/fireworks.jpg') no-repeat center center fixed;
@@ -25,6 +26,8 @@
             min-width: 250px;
         }
     </style>
+    <!-- Script de Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
 <div class="floating-alert" id="alertContainer">
@@ -40,12 +43,12 @@
     <h2 class="text-center mb-4">Iniciar Sesión</h2>
     <form id="loginForm" method="POST" action="/login" novalidate>
         <div class="mb-3">
-    <label>Rol</label>
-    <select class="form-select" name="role" required>
-        <option value="user" selected>Usuario</option>
-        <option value="admin">Administrador</option>
-    </select>
-</div>
+            <label>Rol</label>
+            <select class="form-select" name="role" required>
+                <option value="user" selected>Usuario</option>
+                <option value="admin">Administrador</option>
+            </select>
+        </div>
 
         <div class="mb-3">
             <label>Email</label>
@@ -58,6 +61,12 @@
                 <button class="btn btn-outline-secondary" type="button" id="togglePassword">👁️</button>
             </div>
         </div>
+
+        <!-- Aquí va el reCAPTCHA -->
+        <div class="mb-3 text-center">
+            <div class="g-recaptcha" data-sitekey="6LepYtUrAAAAAGBgkoePRYy9pb5v1_G4jtkE5Usd"></div>
+        </div>
+
         <button type="submit" class="btn btn-success w-100">Ingresar</button>
         <p class="text-center mt-2">¿No tienes cuenta? <a href="/register">Regístrate aquí</a></p>
     </form>
@@ -98,6 +107,13 @@ form.addEventListener('submit', (e) => {
     }
     if (passValue.length === 0) {
         mostrarAlerta("Contraseña no puede estar vacía.");
+        valid = false;
+    }
+
+    // Verificar reCAPTCHA
+    const recaptchaResponse = grecaptcha.getResponse();
+    if (recaptchaResponse.length === 0) {
+        mostrarAlerta("Por favor confirma que no eres un robot.");
         valid = false;
     }
 
