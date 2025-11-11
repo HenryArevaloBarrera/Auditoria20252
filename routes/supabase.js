@@ -1,3 +1,4 @@
+import os from "os";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://mbnguyurjdtcxztlmkpf.supabase.co";
@@ -109,53 +110,110 @@ export async function unblockUser(email) {
 
 // ================== SISTEMA DE LOGS EN STORAGE ==================
 
-export async function saveLogToStorage(eventType, data, user = null) {
+export async function saveLogToStorage(eventType, req, eventData = {}, user = null) {
   try {
     const timestamp = new Date().toISOString();
+
+    // Sanitizar body
+    const safeBody = req?.body ? { ...req.body } : {};
+    if (safeBody.password) safeBody.password = "[PROTECTED]";
+    if (safeBody.password2) safeBody.password2 = "[PROTECTED]";
+    if (safeBody.pass) safeBody.pass = "[PROTECTED]";
+
+    // Detecta si req es un objeto Request de Express
+    const isRequest = req && typeof req.get === "function";
+
+    const requestInfo = isRequest
+      ? {
+          method: req.method,
+          path: req.originalUrl,
+          full_url: req.protocol + "://" + req.get("host") + req.originalUrl,
+          ip: req.headers["x-forwarded-for"] || req.ip,
+          user_agent: req.headers["user-agent"],
+          headers: req.headers,
+          params: req.params,
+          query: req.query,
+          body: safeBody
+        }
+      : {
+          method: null,
+          path: null,
+          full_url: null,
+          ip: req?.ip || null,
+          user_agent: req?.userAgent || null,
+          headers: null,
+          params: null,
+          query: null,
+          body: safeBody
+        };
 
     const logEntry = {
       timestamp,
       event_type: eventType,
-      user: user
-        ? { id: user.id, email: user.email, role: user.role }
-        : null,
-      data,
-      ip: data.ip || null,
-      user_agent: data.userAgent || null,
+      user: user ? { id: user.id, email: user.email, role: user.role || null } : "anonymous",
+      request: requestInfo,
+      server: {
+        hostname: os.hostname(),
+        environment: process.env.NODE_ENV || "development",
+        process_id: process.pid,
+        uptime_seconds: process.uptime()
+      },
+      event_data: eventData
     };
 
+    // ================================
+    //  GUARDAR EN UN SOLO ARCHIVO POR DÍA
+    // ================================
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
 
     const folderPath = `logs/${year}/${month}/${day}/`;
-    const fileName = `log_${timestamp.replace(/[:.]/g, "-")}.json`;
+    const filePath = `${folderPath}daily_log.json`; // Nombre fijo por día
 
-    const logContent = JSON.stringify(logEntry, null, 2);
+    // 1. Descargar archivo existente si existe
+    let logArray = [];
 
-    // Convertir siempre a Blob para Node
-    const blob = new Blob([logContent], {
-      type: "application/json",
+    try {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from("logs-bucket")
+        .download(filePath);
+
+      if (!downloadError && fileData) {
+        const content = await fileData.text();
+        logArray = JSON.parse(content);
+        console.log(`📁 Archivo existente cargado con ${logArray.length} registros`);
+      }
+    } catch (error) {
+      console.log("📝 Creando nuevo archivo de log para hoy");
+    }
+
+    // 2. Agregar nuevo registro al array
+    logArray.push(logEntry);
+
+    // 3. Subir archivo completo actualizado
+    const blob = new Blob([JSON.stringify(logArray, null, 2)], {
+      type: "application/json"
     });
 
-    const { data: uploadData, error } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("logs-bucket")
-      .upload(`${folderPath}${fileName}`, blob, {
-        cacheControl: "3600",
-        upsert: false,
+      .upload(filePath, blob, {
+        upsert: true // IMPORTANTE: Esto reemplaza el archivo existente
       });
 
-    if (error) {
-      console.error("❌ Error guardando log en storage:", error);
-      await saveLogToDatabase(eventType, data, user);
+    if (uploadError) {
+      console.error("❌ Error guardando log diario en storage:", uploadError);
+      await saveLogToDatabase(eventType, logEntry);
       return;
     }
 
-    console.log("✅ Log guardado en storage:", uploadData?.path);
+    console.log(`✅ Log agregado a archivo diario: ${filePath} (Total: ${logArray.length} registros)`);
+
   } catch (error) {
     console.error("❌ Error en saveLogToStorage:", error);
-    await saveLogToDatabase(eventType, data, user);
+    await saveLogToDatabase(eventType, {});
   }
 }
 
@@ -189,39 +247,26 @@ export async function getLogsFromStorage(date = null) {
     const day = String(targetDate.getDate()).padStart(2, "0");
 
     const folderPath = `logs/${year}/${month}/${day}/`;
+    const filePath = `${folderPath}daily_log.json`;
 
-    const { data: files, error } = await supabase.storage
+    // Intentar descargar el archivo único del día
+    const { data: fileData, error: downloadError } = await supabase.storage
       .from("logs-bucket")
-      .list(folderPath);
+      .download(filePath);
 
-    if (error) {
-      console.error("❌ Error listando logs:", error);
+    if (downloadError) {
+      console.error("❌ Error descargando archivo de log:", downloadError);
       return [];
     }
 
-    const logs = [];
-    for (const file of files || []) {
-      try {
-        const { data: fileData, error: downloadError } =
-          await supabase.storage
-            .from("logs-bucket")
-            .download(`${folderPath}${file.name}`);
-
-        if (!downloadError && fileData) {
-          const content = await fileData.text();
-          logs.push(JSON.parse(content));
-        }
-      } catch (fileError) {
-        console.error(
-          `❌ Error procesando archivo ${file.name}:`,
-          fileError
-        );
-      }
+    if (fileData) {
+      const content = await fileData.text();
+      const logs = JSON.parse(content);
+      console.log(`📊 Cargados ${logs.length} registros del archivo diario`);
+      return logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     }
 
-    return logs.sort(
-      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-    );
+    return [];
   } catch (error) {
     console.error("❌ Error en getLogsFromStorage:", error);
     return [];
