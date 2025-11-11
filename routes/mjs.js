@@ -115,7 +115,7 @@ router.post("/login", async (req, res) => {
     const { email, password, role, "g-recaptcha-response": recaptchaToken } = req.body;
 
     // 1. Validar reCAPTCHA con Google
-    const secretKey = "6LeeOgksAAAAAMtJwAkDeg1wYV2oyY6P79dobUxj"; // tu SECRET KEY
+    const secretKey = "6LepYtUrAAAAAHAo1D_y2P8qCf-_7rmXDk9OjL7w"; // tu SECRET KEY
     const verifyURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
 
     const captchaResponse = await fetch(verifyURL, { method: "POST" });
