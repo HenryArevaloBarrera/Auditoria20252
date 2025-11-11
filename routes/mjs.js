@@ -175,7 +175,7 @@ router.post("/login", async (req, res) => {
     });
 
     // Validación de captcha
-    const secretKey = "6LfqVgksAAAAAF_tgCpRb8QmbP1PcPxLx6eJXL6M";
+    const secretKey = "6LcqXAksAAAAAKJz-xva2y_0s9IasPySJDGUbIVR";
     const verifyURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
 
     const captchaResponse = await fetch(verifyURL, { method: "POST" });
