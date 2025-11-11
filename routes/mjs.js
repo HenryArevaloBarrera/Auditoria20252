@@ -166,7 +166,7 @@ router.get("/login", (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { email, password, role, "g-recaptcha-response": recaptchaToken } = req.body;
+    const { email, password, role } = req.body;
 
     auditEvent("LOGIN_ATTEMPT", {
       email,
@@ -174,28 +174,7 @@ router.post("/login", async (req, res) => {
       ip: req.ip
     });
 
-    // Validación de captcha
-    const secretKey = "6LcqXAksAAAAAKJz-xva2y_0s9IasPySJDGUbIVR";
-    const verifyURL = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
-
-    const captchaResponse = await fetch(verifyURL, { method: "POST" });
-    const captchaData = await captchaResponse.json();
-
-    if (!captchaData.success) {
-
-      auditEvent("LOGIN_FAILED_CAPTCHA", {
-        email,
-        ip: req.ip
-      });
-
-      return res.render("login.ejs", {
-        message: "Verificación de reCAPTCHA fallida.",
-        messageType: "danger",
-        title: "Iniciar Sesión"
-      });
-    }
-
-    // Buscar usuario
+    // Buscar usuario según rol
     let user;
     if (role === "admin") {
       const { data: admin } = await supabase
@@ -208,11 +187,13 @@ router.post("/login", async (req, res) => {
       user = await getUserByEmail(email);
     }
 
+    // Usuario no encontrado
     if (!user) {
       auditEvent("LOGIN_FAILED_USER_NOT_FOUND", {
         email,
         ip: req.ip
       });
+
       return res.render("login.ejs", {
         message: "Usuario o contraseña incorrectas",
         messageType: "warning",
@@ -220,11 +201,13 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    // Usuario bloqueado
     if (user.bloqueado) {
       auditEvent("LOGIN_BLOCKED_USER", {
         email,
         ip: req.ip
       });
+
       return res.render("login.ejs", {
         message: "Tu cuenta está bloqueada.",
         messageType: "danger",
@@ -232,7 +215,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Comparación de contraseña
+    // Validar contraseña
     const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
@@ -244,6 +227,7 @@ router.post("/login", async (req, res) => {
         ip: req.ip
       });
 
+      // Bloqueo automático
       if (attempts >= 3) {
         await blockUser(email);
 
@@ -259,6 +243,7 @@ router.post("/login", async (req, res) => {
         });
       }
 
+      // Actualizar intentos
       await updateFailedAttempts(email, attempts);
 
       return res.render("login.ejs", {
@@ -288,7 +273,6 @@ router.post("/login", async (req, res) => {
     return res.redirect("/");
 
   } catch (error) {
-
     auditEvent("LOGIN_ERROR", {
       error: error.message,
       ip: req.ip
@@ -301,6 +285,7 @@ router.post("/login", async (req, res) => {
     });
   }
 });
+
 
 /* ============================================================
    ✅  LOGOUT
