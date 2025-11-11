@@ -1,24 +1,23 @@
-import winston from "winston";
-import DailyRotateFile from "winston-daily-rotate-file";
+// resources/logger.js
+import { createLogger, format, transports } from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
-const { createLogger, format, transports } = winston;
+const { combine, timestamp, json } = format;
 
 const logger = createLogger({
-    level: "info",
-    format: format.combine(
-        format.timestamp(),
-        format.json()
-    ),
-    transports: [
-        new DailyRotateFile({
-            dirname: "logs",
-            filename: "audit-%DATE%.log",
-            datePattern: "YYYY-MM-DD",
-            zippedArchive: true,
-            maxSize: "20m",
-            maxFiles: "90d"
-        })
-    ]
+  level: 'info',
+  format: combine(timestamp(), json()),
+  transports: [
+    new transports.Console(), // útil en Render/Vercel logs
+    new DailyRotateFile({
+      filename: 'logs/audit-%DATE%.log', // carpeta logs/
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '100d', // mantener 14 días
+      dirname: '.', // ruta relativa al proyecto; en serverless no persiste
+      zippedArchive: false
+    })
+  ],
+  exitOnError: false
 });
 
 export default logger;
