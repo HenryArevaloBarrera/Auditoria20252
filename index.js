@@ -6,6 +6,8 @@ import session from "express-session";
 import logoutRoute from './routes/logout.js';
 import adminRoutes from "./routes/admin.js"; 
 
+import auditMiddleware from "./resources/audit-middleware.js";  // ✅ AÑADIR ESTO
+
 const app = express();
 
 // --------------------- Middlewares --------------------- //
@@ -18,8 +20,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "mi-secreto-super-seguro",
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1 * 60 * 1000 } // 1 minuto
+  cookie: { maxAge: 1 * 60 * 1000 } 
 }));
+
+// ✅ Middleware global de auditoría (DEBE IR AQUÍ)
+app.use(auditMiddleware);
 
 // --------------------- Evitar caché --------------------- //
 app.use((req, res, next) => {
@@ -29,7 +34,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Middleware global: ahora `user` estará disponible en todas las vistas
+// ✅ user disponible en vistas
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   next();
@@ -41,11 +46,10 @@ app.set('view engine', 'ejs');
 app.set('PORT', process.env.PORT || 3000);
 
 // --------------------- Rutas --------------------- //
-app.use('/', routes);        // mjs.js
-app.use('/', logoutRoute);   // logout.js
-app.use('/', adminRoutes);   // ✅ admin.js
+app.use('/', routes);
+app.use('/', logoutRoute);
+app.use('/', adminRoutes);
 
-// ✅ Ruta principal
 app.get('/', (req, res) => {
   res.render('index', { title: 'Inicio' });
 });
