@@ -20,8 +20,8 @@ const router = express.Router();
 async function isAdmin(req, res, next) {
   if (!req.session.user || req.session.user.role !== "admin") {
 
-    // AUDITORÍA: intento de acceso NO autorizado
-    auditEvent("ACCESS_DENIED_ADMIN_PANEL", {
+    // AUDITORÍA: intento de acceso NO autorizado - CORREGIDO
+    auditEvent("ACCESS_DENIED_ADMIN_PANEL", req, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       attemptedRoute: "/admin"
@@ -30,8 +30,8 @@ async function isAdmin(req, res, next) {
     return res.redirect("/login");
   }
 
-  // AUDITORÍA: acceso al panel admin verificado
-  auditEvent("ADMIN_AUTH_VERIFIED", {
+  // AUDITORÍA: acceso al panel admin verificado - CORREGIDO
+  auditEvent("ADMIN_AUTH_VERIFIED", req, {
     ip: req.ip,
     userAgent: req.headers["user-agent"]
   }, req.session.user);
@@ -45,7 +45,8 @@ async function isAdmin(req, res, next) {
 router.get("/", async (req, res) => {
   try {
 
-    auditEvent("PAGE_VIEW_HOME", {
+    // CORREGIDO: agregar req como segundo parámetro
+    auditEvent("PAGE_VIEW_HOME", req, {
       ip: req.ip,
       userAgent: req.headers["user-agent"]
     }, req.session.user);
@@ -56,7 +57,8 @@ router.get("/", async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("PAGE_VIEW_HOME_ERROR", {
+    // CORREGIDO
+    auditEvent("PAGE_VIEW_HOME_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -70,7 +72,8 @@ router.get("/", async (req, res) => {
 ============================================================ */
 router.get("/register", (req, res) => {
 
-  auditEvent("PAGE_VIEW_REGISTER", {
+  // CORREGIDO
+  auditEvent("PAGE_VIEW_REGISTER", req, {
     ip: req.ip,
     userAgent: req.headers["user-agent"]
   });
@@ -82,7 +85,8 @@ router.post("/register", async (req, res) => {
   try {
     const { nombre, apellido, identificacion, email, password, fechaNacimiento, telefono } = req.body;
 
-    auditEvent("REGISTER_ATTEMPT", {
+    // CORREGIDO
+    auditEvent("REGISTER_ATTEMPT", req, {
       email,
       ip: req.ip,
       userAgent: req.headers["user-agent"]
@@ -97,7 +101,8 @@ router.post("/register", async (req, res) => {
 
     if (existingUser) {
 
-      auditEvent("REGISTER_FAILED_EMAIL_EXISTS", {
+      // CORREGIDO
+      auditEvent("REGISTER_FAILED_EMAIL_EXISTS", req, {
         email,
         ip: req.ip
       });
@@ -126,7 +131,8 @@ router.post("/register", async (req, res) => {
 
     if (error) throw error;
 
-    auditEvent("REGISTER_SUCCESS", {
+    // CORREGIDO
+    auditEvent("REGISTER_SUCCESS", req, {
       email,
       ip: req.ip
     }, { email });
@@ -138,7 +144,8 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
 
-    auditEvent("REGISTER_ERROR", {
+    // CORREGIDO
+    auditEvent("REGISTER_ERROR", req, {
       error: error.message,
       ip: req.ip
     });
@@ -156,7 +163,8 @@ router.post("/register", async (req, res) => {
 ============================================================ */
 router.get("/login", (req, res) => {
 
-  auditEvent("PAGE_VIEW_LOGIN", {
+  // CORREGIDO
+  auditEvent("PAGE_VIEW_LOGIN", req, {
     ip: req.ip,
     userAgent: req.headers["user-agent"]
   });
@@ -168,7 +176,8 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password, role, "g-recaptcha-response": recaptchaToken } = req.body;
 
-    auditEvent("LOGIN_ATTEMPT", {
+    // CORREGIDO
+    auditEvent("LOGIN_ATTEMPT", req, {
       email,
       role,
       ip: req.ip
@@ -183,7 +192,8 @@ router.post("/login", async (req, res) => {
 
     if (!captchaData.success) {
 
-      auditEvent("LOGIN_FAILED_CAPTCHA", {
+      // CORREGIDO
+      auditEvent("LOGIN_FAILED_CAPTCHA", req, {
         email,
         ip: req.ip
       });
@@ -209,7 +219,8 @@ router.post("/login", async (req, res) => {
     }
 
     if (!user) {
-      auditEvent("LOGIN_FAILED_USER_NOT_FOUND", {
+      // CORREGIDO
+      auditEvent("LOGIN_FAILED_USER_NOT_FOUND", req, {
         email,
         ip: req.ip
       });
@@ -221,7 +232,8 @@ router.post("/login", async (req, res) => {
     }
 
     if (user.bloqueado) {
-      auditEvent("LOGIN_BLOCKED_USER", {
+      // CORREGIDO
+      auditEvent("LOGIN_BLOCKED_USER", req, {
         email,
         ip: req.ip
       });
@@ -238,7 +250,8 @@ router.post("/login", async (req, res) => {
     if (!validPassword) {
       const attempts = (user.intentos_fallidos || 0) + 1;
 
-      auditEvent("LOGIN_WRONG_PASSWORD", {
+      // CORREGIDO
+      auditEvent("LOGIN_WRONG_PASSWORD", req, {
         email,
         attempts,
         ip: req.ip
@@ -247,7 +260,8 @@ router.post("/login", async (req, res) => {
       if (attempts >= 3) {
         await blockUser(email);
 
-        auditEvent("USER_AUTO_BLOCKED", {
+        // CORREGIDO
+        auditEvent("USER_AUTO_BLOCKED", req, {
           email,
           ip: req.ip
         });
@@ -279,7 +293,8 @@ router.post("/login", async (req, res) => {
       role
     };
 
-    auditEvent("LOGIN_SUCCESS", {
+    // CORREGIDO
+    auditEvent("LOGIN_SUCCESS", req, {
       email,
       ip: req.ip
     }, user);
@@ -289,7 +304,8 @@ router.post("/login", async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("LOGIN_ERROR", {
+    // CORREGIDO
+    auditEvent("LOGIN_ERROR", req, {
       error: error.message,
       ip: req.ip
     });
@@ -307,14 +323,16 @@ router.post("/login", async (req, res) => {
 ============================================================ */
 router.get("/logout", (req, res) => {
 
-  auditEvent("LOGOUT", {
+  // CORREGIDO
+  auditEvent("LOGOUT", req, {
     ip: req.ip,
     userAgent: req.headers["user-agent"]
   }, req.session.user);
 
   req.session.destroy(err => {
     if (err) {
-      auditEvent("LOGOUT_ERROR", {
+      // CORREGIDO
+      auditEvent("LOGOUT_ERROR", req, {
         error: err.message,
         ip: req.ip
       }, req.session.user);
@@ -329,7 +347,8 @@ router.get("/logout", (req, res) => {
 router.get("/perfil", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
 
-  auditEvent("PROFILE_VIEW", {
+  // CORREGIDO
+  auditEvent("PROFILE_VIEW", req, {
     ip: req.ip
   }, req.session.user);
 
@@ -343,7 +362,8 @@ router.get("/perfil", async (req, res) => {
     res.render("perfil.ejs", { user, title: "Mi Perfil", message: null, messageType: null });
   } catch (error) {
 
-    auditEvent("PROFILE_VIEW_ERROR", {
+    // CORREGIDO
+    auditEvent("PROFILE_VIEW_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -367,7 +387,8 @@ router.post("/perfil/update", async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
 
-      auditEvent("PROFILE_UPDATE_WRONG_PASSWORD", {
+      // CORREGIDO
+      auditEvent("PROFILE_UPDATE_WRONG_PASSWORD", req, {
         ip: req.ip
       }, req.session.user);
 
@@ -386,7 +407,8 @@ router.post("/perfil/update", async (req, res) => {
     req.session.user.nombre = nombre;
     req.session.user.apellido = apellido;
 
-    auditEvent("PROFILE_UPDATED", {
+    // CORREGIDO
+    auditEvent("PROFILE_UPDATED", req, {
       oldValue: user,
       newValue: { nombre, apellido, telefono },
       ip: req.ip
@@ -401,7 +423,8 @@ router.post("/perfil/update", async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("PROFILE_UPDATE_ERROR", {
+    // CORREGIDO
+    auditEvent("PROFILE_UPDATE_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -413,7 +436,6 @@ router.post("/perfil/update", async (req, res) => {
     });
   }
 });
-
 
 router.post("/perfil/update-password", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
@@ -430,7 +452,8 @@ router.post("/perfil/update-password", async (req, res) => {
     const match = await bcrypt.compare(oldPassword, user.password);
     if (!match) {
 
-      auditEvent("PROFILE_PASSWORD_WRONG_OLD_PASSWORD", {
+      // CORREGIDO
+      auditEvent("PROFILE_PASSWORD_WRONG_OLD_PASSWORD", req, {
         ip: req.ip
       }, req.session.user);
 
@@ -444,7 +467,8 @@ router.post("/perfil/update-password", async (req, res) => {
 
     if (newPassword !== confirmNewPassword) {
 
-      auditEvent("PROFILE_PASSWORD_MISMATCH", {
+      // CORREGIDO
+      auditEvent("PROFILE_PASSWORD_MISMATCH", req, {
         ip: req.ip
       }, req.session.user);
 
@@ -462,7 +486,8 @@ router.post("/perfil/update-password", async (req, res) => {
       .update({ password: hashedPassword })
       .eq("email", req.session.user.email);
 
-    auditEvent("PROFILE_PASSWORD_UPDATED", {
+    // CORREGIDO
+    auditEvent("PROFILE_PASSWORD_UPDATED", req, {
       ip: req.ip
     }, req.session.user);
 
@@ -475,7 +500,8 @@ router.post("/perfil/update-password", async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("PROFILE_PASSWORD_UPDATE_ERROR", {
+    // CORREGIDO
+    auditEvent("PROFILE_PASSWORD_UPDATE_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -487,7 +513,6 @@ router.post("/perfil/update-password", async (req, res) => {
     });
   }
 });
-
 
 router.post("/perfil/delete", async (req, res) => {
   if (!req.session.user) return res.redirect("/login");
@@ -504,7 +529,8 @@ router.post("/perfil/delete", async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
 
-      auditEvent("PROFILE_DELETE_WRONG_PASSWORD", {
+      // CORREGIDO
+      auditEvent("PROFILE_DELETE_WRONG_PASSWORD", req, {
         ip: req.ip
       }, req.session.user);
 
@@ -518,7 +544,8 @@ router.post("/perfil/delete", async (req, res) => {
 
     await supabase.from("usuarios").delete().eq("email", req.session.user.email);
 
-    auditEvent("PROFILE_DELETED", {
+    // CORREGIDO
+    auditEvent("PROFILE_DELETED", req, {
       ip: req.ip
     }, req.session.user);
 
@@ -527,7 +554,8 @@ router.post("/perfil/delete", async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("PROFILE_DELETE_ERROR", {
+    // CORREGIDO
+    auditEvent("PROFILE_DELETE_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -543,7 +571,8 @@ router.post("/perfil/delete", async (req, res) => {
 router.get("/admin", isAdmin, async (req, res) => {
   try {
 
-    auditEvent("ADMIN_PANEL_VIEW", {
+    // CORREGIDO
+    auditEvent("ADMIN_PANEL_VIEW", req, {
       ip: req.ip,
       userAgent: req.headers["user-agent"]
     }, req.session.user);
@@ -565,7 +594,8 @@ router.get("/admin", isAdmin, async (req, res) => {
     });
   } catch (error) {
 
-    auditEvent("ADMIN_PANEL_VIEW_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_PANEL_VIEW_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -587,7 +617,8 @@ router.post("/admin/delete-user", isAdmin, async (req, res) => {
 
     await supabase.from("usuarios").delete().eq("email", email);
 
-    auditEvent("ADMIN_DELETE_USER", {
+    // CORREGIDO
+    auditEvent("ADMIN_DELETE_USER", req, {
       targetEmail: email,
       ip: req.ip
     }, req.session.user);
@@ -596,7 +627,8 @@ router.post("/admin/delete-user", isAdmin, async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("ADMIN_DELETE_USER_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_DELETE_USER_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -618,7 +650,8 @@ router.post("/admin/add-product", isAdmin, async (req, res) => {
       imagen
     }]);
 
-    auditEvent("ADMIN_ADD_PRODUCT", {
+    // CORREGIDO
+    auditEvent("ADMIN_ADD_PRODUCT", req, {
       product: nombre,
       ip: req.ip
     }, req.session.user);
@@ -627,7 +660,8 @@ router.post("/admin/add-product", isAdmin, async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("ADMIN_ADD_PRODUCT_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_ADD_PRODUCT_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -652,7 +686,8 @@ router.post("/admin/edit-product", isAdmin, async (req, res) => {
       })
       .eq("id", parseInt(id));
 
-    auditEvent("ADMIN_EDIT_PRODUCT", {
+    // CORREGIDO
+    auditEvent("ADMIN_EDIT_PRODUCT", req, {
       productId: id,
       ip: req.ip
     }, req.session.user);
@@ -661,7 +696,8 @@ router.post("/admin/edit-product", isAdmin, async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("ADMIN_EDIT_PRODUCT_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_EDIT_PRODUCT_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);
@@ -676,7 +712,8 @@ router.post("/admin/delete-product", isAdmin, async (req, res) => {
 
     await supabase.from("productos").delete().eq("id", parseInt(id));
 
-    auditEvent("ADMIN_DELETE_PRODUCT", {
+    // CORREGIDO
+    auditEvent("ADMIN_DELETE_PRODUCT", req, {
       productId: id,
       ip: req.ip
     }, req.session.user);
@@ -685,7 +722,8 @@ router.post("/admin/delete-product", isAdmin, async (req, res) => {
 
   } catch (error) {
 
-    auditEvent("ADMIN_DELETE_PRODUCT_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_DELETE_PRODUCT_ERROR", req, {
       error: error.message,
       ip: req.ip
     }, req.session.user);

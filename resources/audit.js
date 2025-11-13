@@ -3,13 +3,14 @@ import { saveLogToStorage, getLogsFromStorage, getLogStats } from "../routes/sup
 /**
  * Función de auditoría mejorada que guarda en Supabase Storage
  * @param {string} eventType - Tipo de evento
+ * @param {Object} req - Objeto request de Express
  * @param {Object} eventData - Datos del evento
  * @param {Object} user - Usuario relacionado (opcional)
  */
-export async function auditEvent(eventType, eventData, user = null) {
+export async function auditEvent(eventType, req, eventData = {}, user = null) {
   try {
-    // Guardar en Supabase Storage
-    await saveLogToStorage(eventType, eventData, user);
+    // Guardar en Supabase Storage - CORREGIDO: pasar req
+    await saveLogToStorage(eventType, req, eventData, user);
     
     // También mantener el console.log para desarrollo
     console.log(`[AUDIT] ${eventType}:`, {

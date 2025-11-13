@@ -41,9 +41,10 @@ app.set('view engine', 'ejs');
 app.set('PORT', process.env.PORT || 3000);
 
 // --------------------- Rutas --------------------- //
-app.use('/', routes);        // mjs.js
-app.use('/', logoutRoute);   // logout.js
-app.use('/', adminRoutes);   // ✅ admin.js
+// ORDEN CORREGIDO: adminRoutes PRIMERO
+app.use('/admin', adminRoutes);   // ✅ Ahora con prefijo /admin
+app.use('/', routes);             // mjs.js 
+app.use('/', logoutRoute);        // logout.js
 
 // ✅ Ruta principal
 app.get('/', (req, res) => {

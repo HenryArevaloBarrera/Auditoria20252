@@ -7,10 +7,11 @@ const router = express.Router();
 /* ------------------------------------------------------
    📌 Panel admin → muestra usuarios, productos y bloqueados
 ------------------------------------------------------ */
-router.get("/admin", async (req, res) => {
+// CAMBIADO: de "/admin" a "/"
+router.get("/", async (req, res) => {
   try {
-    // ✅ Registrar evento de acceso al panel admin
-    auditEvent("ADMIN_PANEL_ACCESS", {
+    // ✅ Registrar evento de acceso al panel admin - CORREGIDO
+    auditEvent("ADMIN_PANEL_ACCESS", req, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       route: "/admin"
@@ -51,7 +52,8 @@ router.get("/admin", async (req, res) => {
   } catch (err) {
     console.error("Error inesperado en admin:", err.message);
 
-    auditEvent("ADMIN_PANEL_ACCESS_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_PANEL_ACCESS_ERROR", req, {
       error: err.message,
       ip: req.ip,
       userAgent: req.headers["user-agent"]
@@ -71,15 +73,16 @@ router.get("/admin", async (req, res) => {
 /* ------------------------------------------------------
    📌 Desbloquear usuario
 ------------------------------------------------------ */
-router.post("/admin/unblock-user", async (req, res) => {
+// CAMBIADO: de "/admin/unblock-user" a "/unblock-user"
+router.post("/unblock-user", async (req, res) => {
   try {
     const { email } = req.body;
 
     // ✅ Desbloquear usuario en BD
     await unblockUser(email);
 
-    // ✅ Registrar evento auditoría
-    auditEvent("ADMIN_UNBLOCK_USER", {
+    // ✅ Registrar evento auditoría - CORREGIDO
+    auditEvent("ADMIN_UNBLOCK_USER", req, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       targetEmail: email
@@ -90,7 +93,8 @@ router.post("/admin/unblock-user", async (req, res) => {
   } catch (error) {
     console.error("❌ Error desbloqueando:", error.message);
 
-    auditEvent("ADMIN_UNBLOCK_USER_ERROR", {
+    // CORREGIDO
+    auditEvent("ADMIN_UNBLOCK_USER_ERROR", req, {
       ip: req.ip,
       userAgent: req.headers["user-agent"],
       targetEmail: req.body.email,
