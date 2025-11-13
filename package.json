@@ -19,6 +19,7 @@
     "express": "^5.1.0",
     "express-session": "^1.18.2",
     "node-fetch": "^3.3.2",
+    "uuid": "^13.0.0",
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0"
   },
